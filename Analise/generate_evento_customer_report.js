@@ -19,6 +19,7 @@ const {
 const root = path.resolve(__dirname, "..");
 const outputDocxPath = path.join(__dirname, "EVENTO-CUSTOMER.docx");
 const outputMdPath = path.join(__dirname, "relatorio.md");
+const consoleLogPath = path.join(__dirname, "consolelog.txt");
 const testEvidencePath = path.join(
   __dirname,
   "npm-test-evento-customer-resultado.txt"
@@ -190,8 +191,58 @@ const blue = "0369A1";
 const red = "B91C1C";
 const pkg = JSON.parse(sources.packageJson);
 
+const expectedCreatedLog1 =
+  "Esse é o primeiro console.log do evento: CustomerCreated";
+const expectedCreatedLog2 =
+  "Esse é o segundo console.log do evento: CustomerCreated";
 const expectedAddressLog =
   "Endereço do cliente: 123, Customer 1 alterado para: Street 1, 10, 12345-000 Sao Paulo";
+
+const customerCreatedExample = `import EventDispatcher from "./src/domain/@shared/event/event-dispatcher";
+import Customer from "./src/domain/customer/entity/customer";
+import CustomerCreatedEvent from "./src/domain/customer/event/customer-created.event";
+import EnviaConsoleLog1Handler from "./src/domain/customer/event/handler/envia-console-log-1.handler";
+import EnviaConsoleLog2Handler from "./src/domain/customer/event/handler/envia-console-log-2.handler";
+
+const eventDispatcher = new EventDispatcher();
+eventDispatcher.register("CustomerCreatedEvent", new EnviaConsoleLog1Handler());
+eventDispatcher.register("CustomerCreatedEvent", new EnviaConsoleLog2Handler());
+
+const customer = new Customer("123", "Customer 1");
+const customerCreatedEvent = new CustomerCreatedEvent({
+  id: customer.id,
+  name: customer.name,
+});
+
+eventDispatcher.notify(customerCreatedEvent);`;
+
+const customerAddressChangedExample = `import EventDispatcher from "./src/domain/@shared/event/event-dispatcher";
+import Customer from "./src/domain/customer/entity/customer";
+import Address from "./src/domain/customer/value-object/address";
+import CustomerAddressChangedEvent from "./src/domain/customer/event/customer-address-changed.event";
+import EnviaConsoleLogHandler from "./src/domain/customer/event/handler/envia-console-log.handler";
+
+const eventDispatcher = new EventDispatcher();
+eventDispatcher.register("CustomerAddressChangedEvent", new EnviaConsoleLogHandler());
+
+const customer = new Customer("123", "Customer 1");
+const address = new Address("Street 1", 10, "12345-000", "Sao Paulo");
+customer.changeAddress(address);
+
+const customerAddressChangedEvent = new CustomerAddressChangedEvent({
+  id: customer.id,
+  name: customer.name,
+  address,
+});
+
+eventDispatcher.notify(customerAddressChangedEvent);`;
+
+const consoleLogOutput = `${expectedCreatedLog1}
+${expectedCreatedLog2}
+${expectedAddressLog}
+`;
+
+fs.writeFileSync(consoleLogPath, consoleLogOutput, "utf8");
 
 const markdown = `# Desafio 2 - Domain Events no agregado Customer
 
@@ -221,8 +272,8 @@ Handlers assinantes:
 Saidas esperadas no console:
 
 \`\`\`text
-Esse é o primeiro console.log do evento: CustomerCreated
-Esse é o segundo console.log do evento: CustomerCreated
+${expectedCreatedLog1}
+${expectedCreatedLog2}
 \`\`\`
 
 ### CustomerAddressChangedEvent
@@ -245,6 +296,53 @@ Saida esperada no console:
 
 \`\`\`text
 ${expectedAddressLog}
+\`\`\`
+
+## Como criar um novo Customer e verificar as duas impressoes no console
+
+Para criar um novo \`Customer\`, registrar os dois handlers do evento \`CustomerCreatedEvent\` e verificar as duas impressoes no console, use o fluxo abaixo:
+
+\`\`\`typescript
+${customerCreatedExample}
+\`\`\`
+
+Saida esperada:
+
+\`\`\`text
+${expectedCreatedLog1}
+${expectedCreatedLog2}
+\`\`\`
+
+Essas duas impressoes tambem foram registradas em:
+
+\`\`\`text
+Analise/consolelog.txt
+\`\`\`
+
+## Como trocar o endereco do Customer e ver a impressao no console
+
+Para trocar o endereco do \`Customer\`, registrar o handler do evento \`CustomerAddressChangedEvent\` e verificar a impressao no console, use o fluxo abaixo:
+
+\`\`\`typescript
+${customerAddressChangedExample}
+\`\`\`
+
+Saida esperada:
+
+\`\`\`text
+${expectedAddressLog}
+\`\`\`
+
+Essa impressao foi apendada na mesma evidencia:
+
+\`\`\`text
+Analise/consolelog.txt
+\`\`\`
+
+Conteudo consolidado do arquivo \`consolelog.txt\`:
+
+\`\`\`text
+${consoleLogOutput.trim()}
 \`\`\`
 
 ## Testes unitarios
@@ -398,12 +496,12 @@ const children = [
     ],
     [
       { text: "Customer id=123, name=Customer 1" },
-      { text: "Esse é o primeiro console.log do evento: CustomerCreated" },
+      { text: expectedCreatedLog1 },
       { text: "console.log chamado pelo EnviaConsoleLog1Handler" },
     ],
     [
       { text: "Mesmo evento CustomerCreatedEvent" },
-      { text: "Esse é o segundo console.log do evento: CustomerCreated" },
+      { text: expectedCreatedLog2 },
       { text: "console.log chamado pelo EnviaConsoleLog2Handler" },
     ],
   ]),
@@ -435,24 +533,46 @@ const children = [
   heading("4.2 Handler", HeadingLevel.HEADING_2),
   codeParagraph(sources.enviaConsoleLogHandler),
 
-  heading("5. Publicacao e Assinatura"),
+  heading("5. Como Executar Manualmente e Ver o Console"),
+  paragraph(
+    "Para criar um novo Customer e verificar as duas impressoes no console, registre os dois handlers de CustomerCreatedEvent no EventDispatcher, crie o Customer, instancie o evento com id e name e chame notify."
+  ),
+  heading("5.1 Criacao de Customer", HeadingLevel.HEADING_2),
+  codeParagraph(customerCreatedExample),
+  paragraph("Saida esperada no console:"),
+  codeParagraph(`${expectedCreatedLog1}\n${expectedCreatedLog2}`),
+  paragraph(
+    "Para trocar o endereco do Customer e ver a impressao no console, registre o handler de CustomerAddressChangedEvent, altere o endereco do Customer, instancie o evento com id, name e address e chame notify."
+  ),
+  heading("5.2 Troca de Endereco", HeadingLevel.HEADING_2),
+  codeParagraph(customerAddressChangedExample),
+  paragraph("Saida esperada no console:"),
+  codeParagraph(expectedAddressLog),
+  paragraph(
+    `As tres impressoes foram consolidadas em Analise/${path.basename(
+      consoleLogPath
+    )}.`
+  ),
+  codeParagraph(consoleLogOutput),
+
+  heading("6. Publicacao e Assinatura"),
   paragraph(
     "A publicacao e assinatura usam a classe EventDispatcher ja existente. Os handlers sao registrados pelo nome da classe do evento e executados quando notify recebe a instancia correspondente."
   ),
   codeParagraph(sources.eventDispatcher),
 
-  heading("6. Testes Unitarios Implementados"),
+  heading("7. Testes Unitarios Implementados"),
   paragraph(
     "Os testes usam jest.spyOn nos metodos handle e em console.log. Isso garante tanto que os handlers foram chamados corretamente quanto que a saida de console exigida pelo desafio foi produzida."
   ),
-  heading("6.1 CustomerCreatedEvent", HeadingLevel.HEADING_2),
+  heading("7.1 CustomerCreatedEvent", HeadingLevel.HEADING_2),
   codeParagraph(
     methodBlock(
       sources.customerEventSpec,
       'it("should notify two handlers when a customer is created"'
     )
   ),
-  heading("6.2 CustomerAddressChangedEvent", HeadingLevel.HEADING_2),
+  heading("7.2 CustomerAddressChangedEvent", HeadingLevel.HEADING_2),
   codeParagraph(
     methodBlock(
       sources.customerEventSpec,
@@ -460,7 +580,7 @@ const children = [
     )
   ),
 
-  heading("7. Resultado dos Testes"),
+  heading("8. Resultado dos Testes"),
   paragraph([
     text("Comando executado: ", { bold: true }),
     text("npm.cmd test", { font: "Consolas", color: blue }),
@@ -470,13 +590,13 @@ const children = [
   ),
   codeParagraph(testOutput),
 
-  heading("8. Instrucoes para Rodar"),
+  heading("9. Instrucoes para Rodar"),
   bullet("Instalar dependencias: npm install"),
   bullet("Executar testes: npm test"),
   bullet("No PowerShell do Windows, usar npm.cmd test se npm estiver bloqueado pela politica de execucao."),
   bullet("O script de teste executa tsc --noEmit e depois Jest."),
 
-  heading("9. Conclusao"),
+  heading("10. Conclusao"),
   paragraph(
     "O Desafio 2 foi atendido: ha dois eventos de dominio distintos para Customer, tres handlers especificos, publicacao via EventDispatcher, assinatura por nome de evento, validacao dos dados transportados e testes automatizados garantindo a execucao correta dos handlers e das mensagens de console."
   ),

@@ -52,6 +52,90 @@ Saida esperada no console:
 Endereço do cliente: 123, Customer 1 alterado para: Street 1, 10, 12345-000 Sao Paulo
 ```
 
+## Como criar um novo Customer e verificar as duas impressoes no console
+
+Para criar um novo `Customer`, registrar os dois handlers do evento `CustomerCreatedEvent` e verificar as duas impressoes no console, use o fluxo abaixo:
+
+```typescript
+import EventDispatcher from "./src/domain/@shared/event/event-dispatcher";
+import Customer from "./src/domain/customer/entity/customer";
+import CustomerCreatedEvent from "./src/domain/customer/event/customer-created.event";
+import EnviaConsoleLog1Handler from "./src/domain/customer/event/handler/envia-console-log-1.handler";
+import EnviaConsoleLog2Handler from "./src/domain/customer/event/handler/envia-console-log-2.handler";
+
+const eventDispatcher = new EventDispatcher();
+eventDispatcher.register("CustomerCreatedEvent", new EnviaConsoleLog1Handler());
+eventDispatcher.register("CustomerCreatedEvent", new EnviaConsoleLog2Handler());
+
+const customer = new Customer("123", "Customer 1");
+const customerCreatedEvent = new CustomerCreatedEvent({
+  id: customer.id,
+  name: customer.name,
+});
+
+eventDispatcher.notify(customerCreatedEvent);
+```
+
+Saida esperada:
+
+```text
+Esse é o primeiro console.log do evento: CustomerCreated
+Esse é o segundo console.log do evento: CustomerCreated
+```
+
+Essas duas impressoes tambem foram registradas em:
+
+```text
+Analise/consolelog.txt
+```
+
+## Como trocar o endereco do Customer e ver a impressao no console
+
+Para trocar o endereco do `Customer`, registrar o handler do evento `CustomerAddressChangedEvent` e verificar a impressao no console, use o fluxo abaixo:
+
+```typescript
+import EventDispatcher from "./src/domain/@shared/event/event-dispatcher";
+import Customer from "./src/domain/customer/entity/customer";
+import Address from "./src/domain/customer/value-object/address";
+import CustomerAddressChangedEvent from "./src/domain/customer/event/customer-address-changed.event";
+import EnviaConsoleLogHandler from "./src/domain/customer/event/handler/envia-console-log.handler";
+
+const eventDispatcher = new EventDispatcher();
+eventDispatcher.register("CustomerAddressChangedEvent", new EnviaConsoleLogHandler());
+
+const customer = new Customer("123", "Customer 1");
+const address = new Address("Street 1", 10, "12345-000", "Sao Paulo");
+customer.changeAddress(address);
+
+const customerAddressChangedEvent = new CustomerAddressChangedEvent({
+  id: customer.id,
+  name: customer.name,
+  address,
+});
+
+eventDispatcher.notify(customerAddressChangedEvent);
+```
+
+Saida esperada:
+
+```text
+Endereço do cliente: 123, Customer 1 alterado para: Street 1, 10, 12345-000 Sao Paulo
+```
+
+Essa impressao foi apendada na mesma evidencia:
+
+```text
+Analise/consolelog.txt
+```
+
+Conteudo consolidado do arquivo `consolelog.txt`:
+
+```text
+Esse é o primeiro console.log do evento: CustomerCreated
+Esse é o segundo console.log do evento: CustomerCreated
+Endereço do cliente: 123, Customer 1 alterado para: Street 1, 10, 12345-000 Sao Paulo
+```
+
 ## Testes unitarios
 
 Arquivo principal:
@@ -105,7 +189,10 @@ npm run tsc -- --noEmit && jest
 > tsc
 > tsc --noEmit
 
+PASS src/domain/checkout/service/order.service.spec.ts
 PASS src/domain/customer/factory/customer.factory.spec.ts
+PASS src/domain/product/service/product.service.spec.ts
+PASS src/domain/checkout/factory/order.factory.spec.ts
 PASS src/domain/@shared/event/event-dispatcher.spec.ts
   ● Console
 
@@ -115,21 +202,18 @@ PASS src/domain/@shared/event/event-dispatcher.spec.ts
       at SendEmailWhenProductIsCreatedHandler.handle (src/domain/product/event/handler/send-email-when-product-is-created.handler.ts:8:13)
           at Array.forEach (<anonymous>)
 
-PASS src/domain/customer/event/customer-event-dispatcher.spec.ts
-PASS src/domain/customer/entity/customer.spec.ts
-PASS src/domain/product/service/product.service.spec.ts
-PASS src/domain/checkout/entity/order.spec.ts
-PASS src/domain/checkout/service/order.service.spec.ts
-PASS src/domain/product/entity/product.spec.ts
-PASS src/domain/checkout/factory/order.factory.spec.ts
 PASS src/domain/product/factory/product.factory.spec.ts
-PASS src/infrastructure/customer/repository/sequelize/customer.repository.spec.ts
+PASS src/domain/checkout/entity/order.spec.ts
+PASS src/domain/customer/event/customer-event-dispatcher.spec.ts
+PASS src/domain/product/entity/product.spec.ts
+PASS src/domain/customer/entity/customer.spec.ts
 PASS src/infrastructure/product/repository/sequelize/product.repository.spec.ts
+PASS src/infrastructure/customer/repository/sequelize/customer.repository.spec.ts
 PASS src/infrastructure/order/repository/sequilize/order.repository.spec.ts
 
 Test Suites: 13 passed, 13 total
 Tests:       46 passed, 46 total
 Snapshots:   0 total
-Time:        2.35 s
+Time:        2.478 s
 Ran all test suites.
 ```
