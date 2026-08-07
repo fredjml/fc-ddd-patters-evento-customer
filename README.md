@@ -1,228 +1,75 @@
-# Relatorio Executivo - Analise do codebase `fc-ddd-patterns`
-
-**Escopo:** analise de funcionalidade e qualidade com foco em `Order` e `OrderRepository`.
+# Desafio 2 - Domain Events no agregado Customer
 
 ## Sumario Executivo
 
-- **Objetivo:** avaliar arquitetura, qualidade de codigo, cobertura TDD, QA e seguranca.
-- **Foco principal:** dominio `checkout` (entidade `Order`, `OrderItem`) e implementacao do repositorio em `infrastructure/order/repository/sequilize`.
-- **Entregaveis:** analise tecnica, recomendacoes, criterios de aceite e instrucoes de execucao do projeto.
+Este projeto implementa a publicacao e assinatura de eventos de dominio para o agregado `Customer`, usando TypeScript, Jest e o padrao Domain Events do DDD.
 
----
+Status da validacao:
 
-## Metodologia
+- Compilacao TypeScript: OK
+- Testes automatizados: OK
+- Resultado: 13 suites e 46 testes passaram
 
-1. Inspecao estatica dos arquivos `src/domain/checkout/entity/order.ts`, `order_item.ts`, `factory` e `src/infrastructure/order/repository/sequilize/*`.
-2. Revisao de testes unitarios e de integracao existentes (`*.spec.ts`).
-3. Avaliacao de requisitos funcionais e nao funcionais inferidos do codigo.
-4. Auditoria de praticas de TDD, QA e seguranca.
+## Eventos implementados
 
----
+### CustomerCreatedEvent
 
-## Observacoes Iniciais
+Arquivo: `src/domain/customer/event/customer-created.event.ts`
 
-- Codigo organizado por dominio, com separacao clara entre `domain` e `infrastructure`.
-- Entidades `Order` e `OrderItem` possuem validacoes basicas e metodos de negocio, como `total()`.
-- O repositorio `OrderRepository` utiliza `sequelize-typescript` para persistencia.
-- Os testes de infraestrutura utilizam SQLite em memoria, o que facilita execucao local e em CI.
+Gatilho validado nos testes: criacao de um novo `Customer` e publicacao do evento via `EventDispatcher.notify()`.
 
----
+Handlers assinantes:
 
-## Requisitos Funcionais Inferidos
+- `EnviaConsoleLog1Handler`
+- `EnviaConsoleLog2Handler`
 
-- **RF1:** criar pedido com `id`, `customerId` e lista de itens.
-- **RF2:** calcular o total do pedido somando `price * quantity` de cada `OrderItem`.
-- **RF3:** validar que a quantidade de cada item seja maior que zero.
-- **RF4:** persistir pedido e itens relacionados nas tabelas `orders` e `order_items`.
-- **RF5:** manter relacionamento entre `order` e `customer`, e entre `order_item` e `product`.
-
-## Requisitos Nao Funcionais Inferidos
-
-- **RNF1:** possuir testes automatizados unitarios e de integracao.
-- **RNF2:** utilizar persistencia relacional via Sequelize.
-- **RNF3:** manter codigo TypeScript tipado e organizado por modulos.
-- **RNF4:** permitir execucao simples dos testes em ambiente local.
-
----
-
-## Avaliacao Detalhada - `Order`
-
-Arquivo:
+Saidas esperadas no console:
 
 ```text
-src/domain/checkout/entity/order.ts
+Esse é o primeiro console.log do evento: CustomerCreated
+Esse é o segundo console.log do evento: CustomerCreated
 ```
 
-Pontos observados:
+### CustomerAddressChangedEvent
 
-- Valida `id`, `customerId` e lista de itens.
-- Garante que o pedido possua ao menos um item.
-- Garante que a quantidade dos itens seja maior que zero.
-- Calcula o total do pedido com base nos itens.
+Arquivo: `src/domain/customer/event/customer-address-changed.event.ts`
 
-Observacao tecnica:
+Gatilho validado nos testes: troca do endereco do `Customer` com publicacao do evento via `EventDispatcher.notify()`.
 
-- O total e calculado por `total()`, somando o total de cada `OrderItem`.
-- Como a entidade nao expoe metodos de mutacao da lista de itens, o estado permanece controlado pela construcao da entidade.
+Dados transportados pelo evento:
 
----
+- `id`
+- `name`
+- `address`
 
-## Avaliacao Detalhada - `OrderRepository`
+Handler assinante:
 
-Arquivo:
+- `EnviaConsoleLogHandler`
+
+Saida esperada no console:
 
 ```text
-src/infrastructure/order/repository/sequilize/order.repository.ts
+Endereço do cliente: 123, Customer 1 alterado para: Street 1, 10, 12345-000 Sao Paulo
 ```
 
-O `OrderRepository` e a implementacao de infraestrutura responsavel por persistir e recuperar entidades `Order`.
-
-A classe implementa o contrato definido por:
-
-```text
-src/domain/checkout/repository/order-repository.interface.ts
-```
-
-Esse contrato herda de:
-
-```text
-src/domain/@shared/repository/repository-interface.ts
-```
-
-Contrato esperado:
-
-```typescript
-create(entity: T): Promise<void>;
-update(entity: T): Promise<void>;
-find(id: string): Promise<T>;
-findAll(): Promise<T[]>;
-```
-
-## Status da Implementacao
-
-| Metodo | Status | Evidencia |
-| --- | --- | --- |
-| `create` | Verde - implementado | Cria `Order` e seus `OrderItems` usando `OrderModel.create` com `include`. |
-| `update` | Verde - implementado | Atualiza pedido, total e substitui itens em transacao Sequelize. |
-| `find` | Verde - implementado | Busca pedido por ID com itens associados e recria a entidade de dominio. |
-| `findAll` | Verde - implementado | Lista todos os pedidos com itens associados e mapeia para entidades `Order`. |
-
----
-
-## QA e TDD
-
-Os testes automatizados validam os principais fluxos do repositorio de pedidos.
+## Testes unitarios
 
 Arquivo principal:
 
 ```text
-src/infrastructure/order/repository/sequilize/order.repository.spec.ts
+src/domain/customer/event/customer-event-dispatcher.spec.ts
 ```
 
 Cenarios cobertos:
 
-- Criacao de pedido.
-- Recuperacao de pedido por ID.
-- Erro ao buscar pedido inexistente.
-- Listagem de pedidos.
-- Atualizacao de pedido e substituicao dos itens.
+- Publica `CustomerCreatedEvent` e executa dois handlers independentes.
+- Valida que o primeiro handler imprime exatamente a primeira mensagem exigida.
+- Valida que o segundo handler imprime exatamente a segunda mensagem exigida.
+- Publica `CustomerAddressChangedEvent` apos trocar o endereco do customer.
+- Valida que o evento transporta `id`, `name` e `address`.
+- Valida que o handler de alteracao de endereco imprime exatamente a mensagem exigida.
 
-Os testes utilizam:
-
-- `beforeEach` para criar banco SQLite em memoria.
-- `afterEach` para encerrar a conexao.
-- Models Sequelize reais para validar persistencia e relacionamentos.
-
----
-
-## Seguranca e Resiliencia
-
-Pontos positivos:
-
-- Validacoes basicas estao centralizadas na entidade de dominio.
-- O uso de Sequelize reduz risco de SQL injection em operacoes convencionais.
-- Os testes isolam o banco de dados por execucao.
-
-Pontos de atencao:
-
-- Nao ha validacao formal de formato dos IDs.
-- Nao ha limites maximos definidos para quantidade e preco.
-- Nao ha testes especificos de falhas de banco, rollback ou indisponibilidade.
-
-Recomendacoes:
-
-- Definir limites para `quantity` e `price`.
-- Padronizar formato dos IDs.
-- Adicionar testes de rollback para cenarios de falha no `update`.
-
----
-
-## Mapa de Riscos e Recomendacoes
-
-| Risco | Severidade | Recomendacao |
-| --- | --- | --- |
-| Falta de validacoes de formato e limites | Baixa | Definir regras adicionais no dominio. |
-| Falta de testes de falha transacional | Media | Adicionar testes de rollback em operacoes de update. |
-| Dependencia direta do ORM | Media | Avaliar injecao de dependencias se o projeto crescer. |
-| Evolucao futura da entidade `Order` | Baixa | Manter total calculado por regra de dominio. |
-
----
-
-## Criterios de Aceite do Desafio
-
-| Criterio | Status |
-| --- | --- |
-| Utilizar o codigo base do curso | Verde - atendido |
-| Implementar `OrderRepository` | Verde - atendido |
-| Cumprir `OrderRepositoryInterface` | Verde - atendido |
-| Implementar `create`, `update`, `find` e `findAll` | Verde - atendido |
-| Validar com testes automatizados | Verde - atendido |
-| Executar `npm test` com todos os testes passando | Verde - atendido |
-| Documentar instalacao e execucao dos testes | Verde - atendido neste README |
-
----
-
-## Anexo - Referencias de Arquivos Examinados
-
-- `src/domain/checkout/entity/order.ts`
-- `src/domain/checkout/entity/order_item.ts`
-- `src/domain/checkout/factory/order.factory.ts`
-- `src/domain/checkout/repository/order-repository.interface.ts`
-- `src/domain/@shared/repository/repository-interface.ts`
-- `src/infrastructure/order/repository/sequilize/order.model.ts`
-- `src/infrastructure/order/repository/sequilize/order-item.model.ts`
-- `src/infrastructure/order/repository/sequilize/order.repository.ts`
-- `src/infrastructure/order/repository/sequilize/order.repository.spec.ts`
-
----
-
-## Instrucoes Basicas
-
-Esta secao contem os comandos necessarios para instalar as dependencias e rodar os testes do projeto.
-
-### Pre-requisitos
-
-Antes de executar, tenha instalado:
-
-- Node.js
-- npm
-- Git
-
-Para conferir:
-
-```bash
-node --version
-npm --version
-git --version
-```
-
-### Instalar Dependencias
-
-Acesse a pasta do projeto:
-
-```bash
-cd fc-ddd-patterns
-```
+## Como rodar os testes
 
 Instale as dependencias:
 
@@ -230,21 +77,13 @@ Instale as dependencias:
 npm install
 ```
 
-No PowerShell do Windows, se `npm` for bloqueado pela politica de execucao, use:
-
-```powershell
-npm.cmd install
-```
-
-### Rodar os Testes
-
-Execute:
+Execute a suite:
 
 ```bash
 npm test
 ```
 
-No PowerShell do Windows:
+No PowerShell do Windows, se necessario:
 
 ```powershell
 npm.cmd test
@@ -256,42 +95,41 @@ O comando executa:
 npm run tsc -- --noEmit && jest
 ```
 
-Ou seja:
-
-1. Valida a compilacao TypeScript com `tsc --noEmit`.
-2. Executa os testes automatizados com Jest.
-
-### Resultado Esperado
-
-Todos os testes devem passar.
-
-Saida esperada:
+## Resultado da ultima execucao
 
 ```text
-Test Suites: 12 passed, 12 total
-Tests:       44 passed, 44 total
-Snapshots:   0 total
-Ran all test suites.
-```
+> test
+> npm run tsc -- --noEmit && jest
 
-Tambem deve aparecer a suite do repositorio de pedidos:
 
-```text
+> tsc
+> tsc --noEmit
+
+PASS src/domain/customer/factory/customer.factory.spec.ts
+PASS src/domain/@shared/event/event-dispatcher.spec.ts
+  ● Console
+
+    console.log
+      Sending email to .....
+
+      at SendEmailWhenProductIsCreatedHandler.handle (src/domain/product/event/handler/send-email-when-product-is-created.handler.ts:8:13)
+          at Array.forEach (<anonymous>)
+
+PASS src/domain/customer/event/customer-event-dispatcher.spec.ts
+PASS src/domain/customer/entity/customer.spec.ts
+PASS src/domain/product/service/product.service.spec.ts
+PASS src/domain/checkout/entity/order.spec.ts
+PASS src/domain/checkout/service/order.service.spec.ts
+PASS src/domain/product/entity/product.spec.ts
+PASS src/domain/checkout/factory/order.factory.spec.ts
+PASS src/domain/product/factory/product.factory.spec.ts
+PASS src/infrastructure/customer/repository/sequelize/customer.repository.spec.ts
+PASS src/infrastructure/product/repository/sequelize/product.repository.spec.ts
 PASS src/infrastructure/order/repository/sequilize/order.repository.spec.ts
-```
 
-Isso confirma que a criacao, recuperacao, listagem e atualizacao de `Orders` estao funcionando corretamente.
-
-### Gerar Evidencia em Arquivo TXT
-
-Para salvar o resultado dos testes em arquivo:
-
-```powershell
-npm.cmd test *> Analise\npm-test-resultado.txt
-```
-
-Para tentar preservar codigos de cor ANSI no arquivo:
-
-```powershell
-$env:FORCE_COLOR="1"; npm.cmd test 2>&1 | Tee-Object -FilePath Analise\npm-test-resultado-colorido.txt
+Test Suites: 13 passed, 13 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        2.35 s
+Ran all test suites.
 ```
